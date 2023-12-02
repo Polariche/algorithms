@@ -23,36 +23,37 @@ int main() {
     int N,M;
     cin >> N >> M;
 
-    int bi[M*M*4+2]={0};
-    set<int> biset;
+    int bi[M*M*2+1]={0};
+    map<int, vector<int>> ans;
 
     for (int p=0;p<=M;p++) {
         for (int q=0;q<=M;q++) {
             bi[p*p+q*q]=1;
-            biset.insert(p*p+q*q);
         }
     }
 
-    // O(M^4) lmao
     int total=0;
-    for(int b=1;b<=M*M;b++) {
-        set<int>::iterator it;
-
-        for (it = biset.begin(); it != biset.end();it++) {
+    for (int a=0;a<=2*M*M;a++) {
+        if (!bi[a]) continue;
+        for (int b=1;b<=(2*M*M-a)/(N-1);b++) {
             int i;
-            int a = *it;
             for (i=0; (i<N && bi[a+i*b]); i++);
             
             if (i==N) {
-                cout << a << " " << b << endl;
-                total++;
-                if (total>10000)    return 0;
+                ans[b].push_back(a);
+                if (++total>10000)    return 0;
             }
         }
     }
 
     if (total == 0)
         cout << "NONE" << endl;
+    else {
+        for (auto & [b, as] : ans) {
+            for (int& a : as)
+                cout << a << " " << b << endl;
+        }
+    }
 
     return 0;
 }
