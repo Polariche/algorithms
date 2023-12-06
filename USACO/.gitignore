@@ -1,1 +1,3 @@
 credentials
+*.in
+*.out
