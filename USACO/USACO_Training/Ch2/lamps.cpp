@@ -63,10 +63,6 @@ int main() {
             return 0;
         }
     }
-
-
-    //cout << "ON:  "; print(ans & ops[0], N); cout << endl;
-    //cout << "OFF: "; print((ans>>6) & ops[0], N); cout << endl;
     
     ull on = ans & ops[0];
     ull off = (ans>>6) & ops[0];
