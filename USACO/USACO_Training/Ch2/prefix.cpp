@@ -25,6 +25,8 @@ typedef pair<int,int> pi;
 #define MAX 200000
 #define ctoi(A) (A=='\0'? 28 : (A-'A'))
 
+int dp[MAX];
+
 typedef struct node {
     node* next[30] ={0};
     node* prev=0;
@@ -44,6 +46,27 @@ Node* append(Node* n, int i) {
     return n->next[i];
 }
 
+int check(char* s, int start, Node* root) {
+    Node* n = root;
+    int ans = 0;
+
+    if (dp[start] >= 0) return dp[start];
+
+    for (int i=start;i<MAX&&s[i]!='\0';i++) {
+        int t = ctoi(s[i]);
+        if (exist(n, t)) {
+            n = n->next[t];
+            if (exist(n, ctoi('\0'))) {
+                ans = max(ans, i - start + 1 + check(s, i+1, root));
+            }
+        } else
+            break;
+    }
+
+    dp[start] = ans;
+    return ans;
+}
+
 
 int main() {
     ofstream cout ("prefix.out");
@@ -53,9 +76,7 @@ int main() {
     int N;
 
     Node * root = new Node();
-
     char c[MAX];
-    char* pt = c;
 
     for (N=0;N<=201;N++) {
         string s;
@@ -79,57 +100,21 @@ int main() {
     Node* n = root;
     int cnt = 0;
     int sum = 0;
-    deque<int> ends;
-    ends.push_front(0);
 
     for (int i=0;i<MAX;i++) {
-        cin >> *pt;
-        int t = ctoi(*pt);
+        cin >> c[i];
+        int t = ctoi(c[i]);
 
-        if (*pt == '\n') {
-            pt--; i--; continue;
+        dp[i] = -1;
+
+        if (c[i] == '\n') {
+            i--; continue;
         }
-
-        if (*(pt-1) == '\0' && i>0)
+        if (c[i] == '\0')
             break;
-
-        int k = 0;
-        while (!ends.empty()) {
-            int end = ends.front();
-            int j;
-            ends.pop_front();
-
-            if (k) {
-                n = root;
-                for(j=end+1;j<i;j++) {
-                    if (exist(n,ctoi(c[j]))) {
-                        n=n->next[ctoi(c[j])];
-                        if(exist(n, ctoi('\0')))
-                            ends.push_back(j);
-                    } else break;
-                }
-                if (j<i)
-                    continue;
-                else
-                    sum = end+1;
-            }
-
-            if (exist(n, t) && *pt != '\0') {
-                n = n->next[ctoi(c[i])];
-                if(exist(n, ctoi('\0')))
-                    ends.push_back(i);
-
-                ends.push_front(i);
-                break;
-            }
-
-            k++;
-        }
-            
-        pt++;
     }
 
-    cout << sum << endl;
+    cout << check(c, 0, root) << endl;
     
     return 0;
 }
