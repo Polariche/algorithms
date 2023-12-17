@@ -23,12 +23,12 @@ typedef unsigned long long ull;
 typedef pair<int,int> pi;
 
 #define MAX 200000
-#define ctoi(A) (A=='\0'? 28 : (A-'A'))
+#define ctoi(A) (A=='\0'? 26 : (A-'A'))
 
 int dp[MAX];
 
 typedef struct node {
-    node* next[30] ={0};
+    node* next[27] ={0};
     node* prev=0;
 } Node;
 
@@ -51,7 +51,7 @@ int check(char* s, int start, Node* root) {
     int ans = 0;
 
     if (dp[start] >= 0) return dp[start];
-
+    
     for (int i=start;i<MAX&&s[i]!='\0';i++) {
         int t = ctoi(s[i]);
         if (exist(n, t)) {
@@ -72,11 +72,11 @@ int main() {
     ofstream cout ("prefix.out");
     ifstream cin ("prefix.in");
 
-    vector<string> raw;
     int N;
 
     Node * root = new Node();
     char c[MAX];
+    int i;
 
     for (N=0;N<=201;N++) {
         string s;
@@ -85,12 +85,7 @@ int main() {
         if (s[0] == '.')
             break;
 
-        raw.push_back(s);
-    }
-
-    for (auto &s : raw) {
         Node* n = root;
-
         for (auto &a : s) {
             n = append(n, ctoi(a));
         }
@@ -98,12 +93,9 @@ int main() {
     }
 
     Node* n = root;
-    int cnt = 0;
-    int sum = 0;
 
-    for (int i=0;i<MAX;i++) {
+    for (i=0;i<MAX;i++) {
         cin >> c[i];
-        int t = ctoi(c[i]);
 
         dp[i] = -1;
 
@@ -114,6 +106,9 @@ int main() {
             break;
     }
 
+    for (;i>=0;i--)
+        check(c, i, root);
+    
     cout << check(c, 0, root) << endl;
     
     return 0;
