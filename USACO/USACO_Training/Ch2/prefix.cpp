@@ -106,6 +106,7 @@ int main() {
             break;
     }
 
+    // you gotta stroke 'em the right way!
     for (;i>=0;i--)
         check(c, i, root);
     
