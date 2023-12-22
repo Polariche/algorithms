@@ -31,7 +31,7 @@ int main() {
     ofstream cout ("maze1.out");
     ifstream cin ("maze1.in");
 
-    int a[201][76];
+    int a[202][76];
     int w,h;
     cin >> w >> h;
 
@@ -66,7 +66,7 @@ int main() {
         int t = x.second;
 
         a[i][j] = ans = t;
-        cout << t << " " << i << " " << j << endl;
+        //cout << t << " " << i << " " << j << endl;
 
         for (int d=0;d<4;d++) {
             int i_ = i + 2*dirs[d][0];
