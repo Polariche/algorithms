@@ -147,8 +147,9 @@ class Player {
         void process_tile() {
             Tile tile = world[x][y];
             switch(tile) {
+                case Tile::Boss:
                 case Tile::Monster: 
-                    if (battle_slow(monsters[{x,y}])) 
+                    if (battle(monsters[{x,y}])) 
                         world[x][y] = Tile::Empty;
                     break;
 
@@ -157,8 +158,8 @@ class Player {
                     break;
 
                 case Tile::Item: 
-                    if (equip(items[{x,y}]))
-                        world[x][y] = Tile::Empty;
+                    equip(items[{x,y}]);
+                    world[x][y] = Tile::Empty;
                     break;
                 default: break;
             }
@@ -173,11 +174,13 @@ class Player {
 
             if (monster->boss && amulet[AmuletEffect::Hunter]) {
                 player->hp_cur = player->hp_max;
-                player_remain_turns = player->hp_cur / monster_dmg + (player->hp_cur % monster_dmg?1:0) + 1;
+                player_remain_turns = player->hp_cur / monster_dmg + (player->hp_cur % monster_dmg?1:0);
+                monster_remain_turns = monster->hp_max / player_dmg + (monster->hp_max % player_dmg?1:0) - 1;
             } else {
                 player_remain_turns = player->hp_cur / monster_dmg + (player->hp_cur % monster_dmg?1:0);
+                monster_remain_turns = monster->hp_max / player_dmg + (monster->hp_max % player_dmg?1:0);
             }
-            monster_remain_turns = monster->hp_max / player_dmg + (monster->hp_max % player_dmg?1:0);
+            
 
             if (player_remain_turns < monster_remain_turns) {
                 // player dead!!
@@ -186,7 +189,7 @@ class Player {
                 return false;
             } else {
                 // monster dead!!
-                get_damaged((monster_remain_turns-1) * monster_dmg, monster->name);
+                get_damaged(max(0,(monster_remain_turns-1)) * monster_dmg, monster->name);
 
                 int exp = monster->exp;
                 monster->dead = true;
@@ -195,7 +198,7 @@ class Player {
             }
 
             if (amulet[AmuletEffect::Regen])
-                hp_cur = max(hp_max, hp_cur+3);
+                hp_cur = min(hp_max, hp_cur+3);
 
             return true;
         }
@@ -231,6 +234,9 @@ class Player {
                 exp_cur += exp + (amulet[AmuletEffect::Experience] ? exp/5 : 0);
                 level_up();
 
+                if (amulet[AmuletEffect::Regen])
+                    hp_cur = min(hp_max, hp_cur+3);
+
                 return true;
             }
 
@@ -240,14 +246,14 @@ class Player {
             switch(item->type) {
                 case ItemType::Weapon:  
                     if (weapon != nullptr)
-                        return false;
+                        atk -= weapon->value;
                     weapon = item;
                     atk += weapon->value;
                     break;
 
                 case ItemType::Armor: 
                     if (armor != nullptr)
-                        return false;
+                        def -= armor->value;
                     armor = item;
                     def += armor->value;
                     break;
@@ -272,24 +278,35 @@ class Player {
         }
 
         bool get_damaged(int dmg, string deathcause) {
+            dmg = max(0,dmg);
             hp_cur -= dmg;
 
-            if (is_dead() && amulet[AmuletEffect::Reincarnation]) {
-                amulet[AmuletEffect::Reincarnation] = false;
-                amulet_nums--;
-                hp_cur = hp_max;
-                x = start_x;
-                y = start_y;
-
-                return false;
-            } else {
-                death_by = deathcause;
+            if (is_dead()) {
+                if (amulet[AmuletEffect::Reincarnation]) {
+                    amulet[AmuletEffect::Reincarnation] = false;
+                    amulet_nums--;
+                    
+                    hp_cur = hp_max;
+                    x = start_x;
+                    y = start_y;
+                    return false;
+                } else {
+                    death_by = deathcause;
+                    hp_cur = 0;
+                    return true;
+                }
             }
-
             return true;
         }
         void output_stats() {
-
+            int atk_bonus = weapon!=nullptr? weapon->value : 0;
+            int def_bonus = armor!=nullptr? armor->value : 0;
+            cout << "Passed Turns : " << turn << "\n";
+            cout << "LV : " << level << "\n";
+            cout << "HP : " << hp_cur << "/" << hp_max << "\n";
+            cout << "ATT : " << atk-atk_bonus << "+" << atk_bonus << "\n";
+            cout << "DEF : " << def-def_bonus << "+" << def_bonus << "\n";
+            cout << "EXP : " << exp_cur << "/" << level*5 << "\n";
         }
 };
 
@@ -409,7 +426,7 @@ void input_monsters_and_items() {
 void output_world() {
     for (int i=1;i<=N;i++) {
         for (int j=1;j<=M;j++) {
-            if (player->x == i && player->y == j) {
+            if (player->x == i && player->y == j && !player->is_dead()) {
                 cout << "@";
                 continue;
             }
@@ -430,11 +447,11 @@ void output_world() {
 
 void output_result() {
     if (player->is_dead()) {
-
+        cout << "YOU HAVE BEEN KILLED BY " << death_by << "..";
     } else if (boss->dead) {
-
+        cout << "YOU WIN!";
     } else if (turn >= commands.size()) {
-
+        cout << "Press any key to continue.";
     }
 }
 
@@ -446,6 +463,10 @@ int main() {
     input_monsters_and_items();
 
     player = new Player();
+    if (!boss) {
+        boss = new Monster(-1,-1,"Boss", 0,0,0,0);
+        boss->boss = true;
+    }
 
     while (!player->is_dead() && !boss->dead && turn < commands.size()) {
         player->move(commands[turn++]);
