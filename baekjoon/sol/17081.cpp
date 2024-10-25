@@ -168,19 +168,41 @@ class Player {
         bool battle(Monster * monster) {
             int player_dmg, monster_dmg;
             int player_remain_turns, monster_remain_turns;
-            
-            player_dmg = max(1, (amulet[AmuletEffect::Courage]?2:1)*player->atk - monster->def);
+            int dmg_mult = 1;
+            int monster_hp = monster->hp_max;
+
             monster_dmg = max(1, monster->atk - player->def);
 
+            if (amulet[AmuletEffect::Courage]) {
+                if (amulet[AmuletEffect::Dexterity])
+                    dmg_mult = 3;
+                else
+                    dmg_mult = 2;
+            }
+            player_dmg = max(1, dmg_mult*player->atk - monster->def);
+
+            // first turn
             if (monster->boss && amulet[AmuletEffect::Hunter]) {
                 player->hp_cur = player->hp_max;
-                player_remain_turns = player->hp_cur / monster_dmg + (player->hp_cur % monster_dmg?1:0);
-                monster_remain_turns = monster->hp_max / player_dmg + (monster->hp_max % player_dmg?1:0) - 1;
+                
+                monster_hp -= player_dmg;
+                monster_hp = max(0,monster_hp);
             } else {
-                player_remain_turns = player->hp_cur / monster_dmg + (player->hp_cur % monster_dmg?1:0);
-                monster_remain_turns = monster->hp_max / player_dmg + (monster->hp_max % player_dmg?1:0);
+                monster_hp -= player_dmg;
+                monster_hp = max(0,monster_hp);
+
+                if (monster_hp > 0) {
+                    get_damaged(monster_dmg, monster->name);
+                    if (this->is_dead() || (monster->x != player->x || monster->y != player->y)) {
+                        return false;
+                    }
+                }   
             }
-            
+
+            player_dmg = max(1, player->atk - monster->def);
+
+            player_remain_turns = player->hp_cur / monster_dmg + (player->hp_cur % monster_dmg?1:0);
+            monster_remain_turns = monster_hp / player_dmg + (monster_hp % player_dmg?1:0);
 
             if (player_remain_turns < monster_remain_turns) {
                 // player dead!!
@@ -209,7 +231,17 @@ class Player {
             int player_hp = hp_cur;
 
             int player_dmg, monster_dmg;
-            player_dmg = max(1, (amulet[AmuletEffect::Courage]?2:1)*player->atk - monster->def);
+
+            int dmg_mult = 1;
+
+            if (amulet[AmuletEffect::Courage]) {
+                if (amulet[AmuletEffect::Dexterity])
+                    dmg_mult = 3;
+                else
+                    dmg_mult = 2;
+            }
+
+            player_dmg = max(1, dmg_mult*player->atk - monster->def);
             monster_dmg = max(1, monster->atk - player->def);
 
             if (monster->boss && amulet[AmuletEffect::Hunter]) {
