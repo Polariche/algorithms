@@ -24,6 +24,7 @@ Type chess[8][8];
 bool side[8][8];
 
 set<int> threat_map[2][8][8];
+bool possible_moves[8][8][64];
 vector<int> mypawns;            // we're all pawns on the chessboard
 
 // [0, 4): horizontal / vertical (for queens and rooks)
@@ -38,10 +39,15 @@ int dy[8] = {0, 0, -1, 1,
 int dx_n[8] = {-2,-2, -1, -1, 1, 1, 2, 2};
 int dy_n[8] = {-1, 1, -2, 2, -2, 2, -1, 1};
 
-#define MARK_AND_CAPTURE(s, i, j) if (diff > 0)\
+#define MARK_AND_CAPTURE(s, i, j) if (diff > 0){\
                                     threat_map[!s][i][j].insert(x*8+y);\
-                                  else\
-                                    threat_map[!s][i][j].erase(x*8+y);
+                                    possible_moves[x][y][i*8+j] = 1;\
+                                  }else{\
+                                	if (possible_moves[x][y][i*8+j])\
+                                    	threat_map[!s][i][j].erase(x*8+y);\
+                                    possible_moves[x][y][i*8+j] = 0;\
+                                  }
+                                  
 
 #define THREAT_BY_LINE(dirs, dire) \
     for (int k=dirs;k<dire;k++) {\
@@ -59,8 +65,10 @@ int dy_n[8] = {-1, 1, -2, 2, -2, 2, -1, 1};
 void threat_by_king(int x, int y, int diff) {
     bool s = side[x][y];
 
-    for (int i=x-1;i<=x+1;i++) {
-        for (int j=y-1;j<=y+1;j++) {
+    for (int i=max(0,x-1);i<=min(x+1,7);i++) {
+        for (int j=max(0,y-1);j<=min(y+1,7);j++) {
+            if (i==x && j == y)
+                continue;
             MARK_AND_CAPTURE(s, i, j);
         }
     }
@@ -68,39 +76,35 @@ void threat_by_king(int x, int y, int diff) {
 
 void threat_by_queen(int x, int y, int diff) {
     bool s = side[x][y];
-    MARK_AND_CAPTURE(s, x, y)
-
     THREAT_BY_LINE(0, 8);
-
 }
 
 void threat_by_rook(int x, int y, int diff) {
     bool s = side[x][y];
-    MARK_AND_CAPTURE(s, x, y)
 
     THREAT_BY_LINE(0, 4);
 }
 void threat_by_bishop(int x, int y, int diff) {
     bool s = side[x][y];
-    MARK_AND_CAPTURE(s, x, y)
 
     THREAT_BY_LINE(4, 8);
 }
 void threat_by_knight(int x, int y, int diff) {
     bool s = side[x][y];
-    MARK_AND_CAPTURE(s, x, y)
 
     for (int k=0;k<8;k++) {
-        int i = x + dx[k];
-        int j = y + dy[k];
+        int i = x + dx_n[k];
+        int j = y + dy_n[k];
+        if (i<0||j<0||i>=8||j>=8)
+            continue;
         MARK_AND_CAPTURE(s, i, j);
     }
 }
 
 void init() {
     memset(chess, 0, sizeof(chess));
-    //memset(threat_map, 0, sizeof(threat_map));
     memset(side, 0, sizeof(side));
+    memset(possible_moves, 0, sizeof(possible_moves));
 
     for (int k=0;k<2;k++) {
         for (int i=0;i<8;i++) {
@@ -190,66 +194,88 @@ void display_threat(bool s) {
     }
 }
 
-bool try_evade() {
-    // try to move a vacant, peaceful space
+#define KING_THREATS threat_map[cur_side][myking/8][myking%8]
 
-    int x = myking / 8;
-    int y = myking % 8;
+bool try_move() {
+    for (int p : mypawns) {
+    	int x = p/8;
+    	int y = p%8;
+    	
+    	Type ptype = chess[x][y];
+    	bool pside = side[x][y];
+    	
+    	for (int k=0;k<64;k++) {
+    		if (!possible_moves[x][y][k])
+    			continue;
+    		
+    		int tmp = myking;
+    		int i = k/8;
+    		int j = k%8;
+    		
+    		Type qtype = chess[i][j];
+    		bool qside = side[i][j];
+    	    
+            set<int> affected;
+    		
+    		if (i==x && j==y)
+    			continue;
+    			
+            affected.insert(p);
+    		for (int q : threat_map[cur_side][x][y])
+    			affected.insert(q);
+    		for (int q : threat_map[cur_side][i][j])
+    			affected.insert(q);
 
-    for (int i=x-1;i<=x+1;i++) {
-        for (int j=y-1;j<=y+1;j++) {
-            if (i==x && j==y)
-                continue;
-
-            if (threat_map[cur_side][i][j].size() == 0)
-                return 1;
-        }
+            for (int q : affected)
+    			threat_by(q/8, q%8, -1);
+    			
+    		// place
+    		chess[i][j] = ptype;
+    		side[i][j] = pside;
+    		chess[x][y] = Type::None;
+    		if (ptype == Type::King)
+    			myking = k;
+    		
+    		for (int q : affected)
+    			threat_by(q/8, q%8, 1);
+    			
+    		if (KING_THREATS.size() == 0)
+    			return 1;
+    			
+    		// unplace	
+    		for (int q : affected)
+    			threat_by(q/8, q%8, -1);
+    			
+    		chess[i][j] = qtype;
+    		side[i][j] = qside;
+    		chess[x][y] = ptype;
+    		myking = tmp;
+    		
+    		for (int q : affected)
+    			threat_by(q/8, q%8, 1);
+    	}
+    	
     }
-    return 0;
-}
-
-#define MYKING_THREATS threat_map[cur_side][myking/8][myking%8]
-
-bool try_violence() {
-    // peace is not always an option...
-
-    if (MYKING_THREATS.size() > 1)
-        return 0;
-
-    int t = *(MYKING_THREATS.begin());
-    
-
-    return 0;
-}
-
-bool try_block() {
-    if (MYKING_THREATS.size() > 1)
-        return 0;
-
-    int t = *(MYKING_THREATS.begin());
-
 
     return 0;
 }
 
 void test() {
+	bool safe_on_first;
+	
     init();
     input();
     create_threat();
-
-    cout << "\n";
-    display_threat(cur_side);
+    
+    safe_on_first = KING_THREATS.size() == 0;
 
     if (!cur_side)
         cout << "WHITE IS ";
     else
         cout << "BLACK IS ";
-
-    if (MYKING_THREATS.size() == 0)
-        cout << "SAFE\n";
-
-    else if (try_evade() || try_violence() || try_block())
-        cout << "CHECKED\n";
+        
+    if (try_move())
+        cout << (safe_on_first ? "SAFE\n" : "CHECKED\n");
 
     else
         cout << "CHECKMATED\n";
